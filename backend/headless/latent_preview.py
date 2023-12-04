@@ -27,8 +27,7 @@ class TAESDPreviewerImpl(LatentPreviewer):
         x_sample = 255. * np.moveaxis(x_sample.cpu().numpy(), 0, 2)
         x_sample = x_sample.astype(np.uint8)
 
-        preview_image = Image.fromarray(x_sample)
-        return preview_image
+        return Image.fromarray(x_sample)
 
 
 class Latent2RGBPreviewer(LatentPreviewer):
@@ -70,7 +69,9 @@ def get_previewer(device, latent_format):
                 taesd = TAESD(None, taesd_decoder_path).to(device)
                 previewer = TAESDPreviewerImpl(taesd)
             else:
-                print("Warning: TAESD previews enabled, but could not find models/vae_approx/{}".format(latent_format.taesd_decoder_name))
+                print(
+                    f"Warning: TAESD previews enabled, but could not find models/vae_approx/{latent_format.taesd_decoder_name}"
+                )
 
         if previewer is None:
             if latent_format.latent_rgb_factors is not None:

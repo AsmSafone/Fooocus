@@ -11,7 +11,7 @@ from fcbh.cli_args import args
 
 class ModelMergeSimple:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "model1": ("MODEL",),
                               "model2": ("MODEL",),
                               "ratio": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
@@ -30,7 +30,7 @@ class ModelMergeSimple:
 
 class ModelSubtract:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "model1": ("MODEL",),
                               "model2": ("MODEL",),
                               "multiplier": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),
@@ -49,7 +49,7 @@ class ModelSubtract:
 
 class ModelAdd:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "model1": ("MODEL",),
                               "model2": ("MODEL",),
                               }}
@@ -68,7 +68,7 @@ class ModelAdd:
 
 class CLIPMergeSimple:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "clip1": ("CLIP",),
                               "clip2": ("CLIP",),
                               "ratio": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
@@ -89,7 +89,7 @@ class CLIPMergeSimple:
 
 class ModelMergeBlocks:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "model1": ("MODEL",),
                               "model2": ("MODEL",),
                               "input": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
@@ -124,7 +124,7 @@ class CheckpointSave:
         self.output_dir = folder_paths.get_output_directory()
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "model": ("MODEL",),
                               "clip": ("CLIP",),
                               "vae": ("VAE",),
@@ -138,10 +138,7 @@ class CheckpointSave:
 
     def save(self, model, clip, vae, filename_prefix, prompt=None, extra_pnginfo=None):
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)
-        prompt_info = ""
-        if prompt is not None:
-            prompt_info = json.dumps(prompt)
-
+        prompt_info = json.dumps(prompt) if prompt is not None else ""
         metadata = {}
 
         enable_modelspec = True
@@ -155,7 +152,7 @@ class CheckpointSave:
         if enable_modelspec:
             metadata["modelspec.sai_model_spec"] = "1.0.0"
             metadata["modelspec.implementation"] = "sgm"
-            metadata["modelspec.title"] = "{} {}".format(filename, counter)
+            metadata["modelspec.title"] = f"{filename} {counter}"
 
         #TODO:
         # "stable-diffusion-v1", "stable-diffusion-v1-inpainting", "stable-diffusion-v2-512",
@@ -184,7 +181,7 @@ class CLIPSave:
         self.output_dir = folder_paths.get_output_directory()
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "clip": ("CLIP",),
                               "filename_prefix": ("STRING", {"default": "clip/fcbh_backend"}),},
                 "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},}
@@ -195,10 +192,7 @@ class CLIPSave:
     CATEGORY = "advanced/model_merging"
 
     def save(self, clip, filename_prefix, prompt=None, extra_pnginfo=None):
-        prompt_info = ""
-        if prompt is not None:
-            prompt_info = json.dumps(prompt)
-
+        prompt_info = json.dumps(prompt) if prompt is not None else ""
         metadata = {}
         if not args.disable_metadata:
             metadata["prompt"] = prompt_info
@@ -211,17 +205,15 @@ class CLIPSave:
 
         for prefix in ["clip_l.", "clip_g.", ""]:
             k = list(filter(lambda a: a.startswith(prefix), clip_sd.keys()))
-            current_clip_sd = {}
-            for x in k:
-                current_clip_sd[x] = clip_sd.pop(x)
-            if len(current_clip_sd) == 0:
+            current_clip_sd = {x: clip_sd.pop(x) for x in k}
+            if not current_clip_sd:
                 continue
 
             p = prefix[:-1]
             replace_prefix = {}
             filename_prefix_ = filename_prefix
             if len(p) > 0:
-                filename_prefix_ = "{}_{}".format(filename_prefix_, p)
+                filename_prefix_ = f"{filename_prefix_}_{p}"
                 replace_prefix[prefix] = ""
             replace_prefix["transformer."] = ""
 
@@ -240,7 +232,7 @@ class VAESave:
         self.output_dir = folder_paths.get_output_directory()
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "vae": ("VAE",),
                               "filename_prefix": ("STRING", {"default": "vae/fcbh_backend_vae"}),},
                 "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},}
@@ -252,10 +244,7 @@ class VAESave:
 
     def save(self, vae, filename_prefix, prompt=None, extra_pnginfo=None):
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)
-        prompt_info = ""
-        if prompt is not None:
-            prompt_info = json.dumps(prompt)
-
+        prompt_info = json.dumps(prompt) if prompt is not None else ""
         metadata = {}
         if not args.disable_metadata:
             metadata["prompt"] = prompt_info

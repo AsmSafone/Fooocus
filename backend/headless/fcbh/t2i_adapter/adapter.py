@@ -76,11 +76,7 @@ class ResnetBlock(nn.Module):
         self.block1 = nn.Conv2d(out_c, out_c, 3, 1, 1)
         self.act = nn.ReLU()
         self.block2 = nn.Conv2d(out_c, out_c, ksize, 1, ps)
-        if sk == False:
-            self.skep = nn.Conv2d(in_c, out_c, ksize, 1, ps)
-        else:
-            self.skep = None
-
+        self.skep = nn.Conv2d(in_c, out_c, ksize, 1, ps) if sk == False else None
         self.down = down
         if self.down == True:
             self.down_opt = Downsample(in_c, use_conv=use_conv)
@@ -94,10 +90,7 @@ class ResnetBlock(nn.Module):
         h = self.block1(x)
         h = self.act(h)
         h = self.block2(h)
-        if self.skep is not None:
-            return h + self.skep(x)
-        else:
-            return h + x
+        return h + self.skep(x) if self.skep is not None else h + x
 
 
 class Adapter(nn.Module):
@@ -112,7 +105,7 @@ class Adapter(nn.Module):
             resblock_no_downsample = [1]
             resblock_downsample = [2]
 
-        self.input_channels = cin // (self.unshuffle_amount * self.unshuffle_amount)
+        self.input_channels = cin // self.unshuffle_amount**2
         self.unshuffle = nn.PixelUnshuffle(self.unshuffle_amount)
         self.channels = channels
         self.nums_rb = nums_rb
@@ -141,15 +134,10 @@ class Adapter(nn.Module):
             for j in range(self.nums_rb):
                 idx = i * self.nums_rb + j
                 x = self.body[idx](x)
-            if self.xl:
-                features.append(None)
-                if i == 0:
-                    features.append(None)
-                    features.append(None)
-                if i == 2:
-                    features.append(None)
-            else:
-                features.append(None)
+            features.append(None)
+            if self.xl and i == 0:
+                features.extend((None, None))
+            elif self.xl and i == 2 or not self.xl:
                 features.append(None)
             features.append(x)
 
@@ -243,8 +231,7 @@ class extractor(nn.Module):
         super().__init__()
         self.in_conv = nn.Conv2d(in_c, inter_c, 1, 1, 0)
         self.body = []
-        for _ in range(nums_rb):
-            self.body.append(ResnetBlock_light(inter_c))
+        self.body.extend(ResnetBlock_light(inter_c) for _ in range(nums_rb))
         self.body = nn.Sequential(*self.body)
         self.out_conv = nn.Conv2d(inter_c, out_c, 1, 1, 0)
         self.down = down
@@ -266,7 +253,7 @@ class Adapter_light(nn.Module):
         super(Adapter_light, self).__init__()
         self.unshuffle_amount = 8
         self.unshuffle = nn.PixelUnshuffle(self.unshuffle_amount)
-        self.input_channels = cin // (self.unshuffle_amount * self.unshuffle_amount)
+        self.input_channels = cin // self.unshuffle_amount**2
         self.channels = channels
         self.nums_rb = nums_rb
         self.body = []
@@ -286,8 +273,5 @@ class Adapter_light(nn.Module):
         features = []
         for i in range(len(self.channels)):
             x = self.body[i](x)
-            features.append(None)
-            features.append(None)
-            features.append(x)
-
+            features.extend((None, None, x))
         return features

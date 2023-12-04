@@ -22,10 +22,11 @@ def img2windows(img, H_sp, W_sp):
     """
     B, C, H, W = img.shape
     img_reshape = img.view(B, C, H // H_sp, H_sp, W // W_sp, W_sp)
-    img_perm = (
-        img_reshape.permute(0, 2, 4, 3, 5, 1).contiguous().reshape(-1, H_sp * W_sp, C)
+    return (
+        img_reshape.permute(0, 2, 4, 3, 5, 1)
+        .contiguous()
+        .reshape(-1, H_sp * W_sp, C)
     )
-    return img_perm
 
 
 def windows2img(img_splits_hw, H_sp, W_sp, H, W):
@@ -445,8 +446,8 @@ class Adaptive_Spatial_Attention(nn.Module):
         mask_windows_0 = img_mask_0.view(-1, self.split_size[0] * self.split_size[1])
         attn_mask_0 = mask_windows_0.unsqueeze(1) - mask_windows_0.unsqueeze(2)
         attn_mask_0 = attn_mask_0.masked_fill(
-            attn_mask_0 != 0, float(-100.0)
-        ).masked_fill(attn_mask_0 == 0, float(0.0))
+            attn_mask_0 != 0, -100.0
+        ).masked_fill(attn_mask_0 == 0, 0.0)
 
         # calculate mask for window-1
         img_mask_1 = img_mask_1.view(
@@ -465,8 +466,8 @@ class Adaptive_Spatial_Attention(nn.Module):
         mask_windows_1 = img_mask_1.view(-1, self.split_size[1] * self.split_size[0])
         attn_mask_1 = mask_windows_1.unsqueeze(1) - mask_windows_1.unsqueeze(2)
         attn_mask_1 = attn_mask_1.masked_fill(
-            attn_mask_1 != 0, float(-100.0)
-        ).masked_fill(attn_mask_1 == 0, float(0.0))
+            attn_mask_1 != 0, -100.0
+        ).masked_fill(attn_mask_1 == 0, 0.0)
 
         return attn_mask_0, attn_mask_1
 
@@ -517,14 +518,9 @@ class Adaptive_Spatial_Attention(nn.Module):
             )
             qkv_1 = qkv_1.view(3, B, _L, C // 2)
 
-            if self.patches_resolution != _H or self.patches_resolution != _W:
-                mask_tmp = self.calculate_mask(_H, _W)
-                x1_shift = self.attns[0](qkv_0, _H, _W, mask=mask_tmp[0].to(x.device))
-                x2_shift = self.attns[1](qkv_1, _H, _W, mask=mask_tmp[1].to(x.device))
-            else:
-                x1_shift = self.attns[0](qkv_0, _H, _W, mask=self.attn_mask_0)
-                x2_shift = self.attns[1](qkv_1, _H, _W, mask=self.attn_mask_1)
-
+            mask_tmp = self.calculate_mask(_H, _W)
+            x1_shift = self.attns[0](qkv_0, _H, _W, mask=mask_tmp[0].to(x.device))
+            x2_shift = self.attns[1](qkv_1, _H, _W, mask=mask_tmp[1].to(x.device))
             x1 = torch.roll(
                 x1_shift, shifts=(self.shift_size[0], self.shift_size[1]), dims=(1, 2)
             )
@@ -533,9 +529,6 @@ class Adaptive_Spatial_Attention(nn.Module):
             )
             x1 = x1[:, :H, :W, :].reshape(B, L, C // 2)
             x2 = x2[:, :H, :W, :].reshape(B, L, C // 2)
-            # attention output
-            attened_x = torch.cat([x1, x2], dim=2)
-
         else:
             x1 = self.attns[0](qkv[:, :, :, : C // 2], _H, _W)[:, :H, :W, :].reshape(
                 B, L, C // 2
@@ -543,8 +536,8 @@ class Adaptive_Spatial_Attention(nn.Module):
             x2 = self.attns[1](qkv[:, :, :, C // 2 :], _H, _W)[:, :H, :W, :].reshape(
                 B, L, C // 2
             )
-            # attention output
-            attened_x = torch.cat([x1, x2], dim=2)
+        # attention output
+        attened_x = torch.cat([x1, x2], dim=2)
 
         # convolution output
         conv_x = self.dwconv(v)
@@ -835,10 +828,7 @@ class ResidualGroup(nn.Module):
         H, W = x_size
         res = x
         for blk in self.blocks:
-            if self.use_chk:
-                x = checkpoint.checkpoint(blk, x, x_size)
-            else:
-                x = blk(x, x_size)
+            x = checkpoint.checkpoint(blk, x, x_size) if self.use_chk else blk(x, x_size)
         x = rearrange(x, "b (h w) c -> b c h w", h=H, w=W)
         x = self.conv(x)
         x = rearrange(x, "b c h w -> b (h w) c")
@@ -858,11 +848,9 @@ class Upsample(nn.Sequential):
         m = []
         if (scale & (scale - 1)) == 0:  # scale = 2^n
             for _ in range(int(math.log(scale, 2))):
-                m.append(nn.Conv2d(num_feat, 4 * num_feat, 3, 1, 1))
-                m.append(nn.PixelShuffle(2))
+                m.extend((nn.Conv2d(num_feat, 4 * num_feat, 3, 1, 1), nn.PixelShuffle(2)))
         elif scale == 3:
-            m.append(nn.Conv2d(num_feat, 9 * num_feat, 3, 1, 1))
-            m.append(nn.PixelShuffle(3))
+            m.extend((nn.Conv2d(num_feat, 9 * num_feat, 3, 1, 1), nn.PixelShuffle(3)))
         else:
             raise ValueError(
                 f"scale {scale} is not supported. " "Supported scales: 2^n and 3."
@@ -883,15 +871,13 @@ class UpsampleOneStep(nn.Sequential):
     def __init__(self, scale, num_feat, num_out_ch, input_resolution=None):
         self.num_feat = num_feat
         self.input_resolution = input_resolution
-        m = []
-        m.append(nn.Conv2d(num_feat, (scale**2) * num_out_ch, 3, 1, 1))
+        m = [nn.Conv2d(num_feat, (scale**2) * num_out_ch, 3, 1, 1)]
         m.append(nn.PixelShuffle(scale))
         super(UpsampleOneStep, self).__init__(*m)
 
     def flops(self):
         h, w = self.input_resolution
-        flops = h * w * self.num_feat * 3 * 9
-        return flops
+        return h * w * self.num_feat * 3 * 9
 
 
 class DAT(nn.Module):

@@ -136,39 +136,38 @@ def _get_attention_scores_no_kv_chunking(
     scale: float,
     upcast_attention: bool,
 ) -> Tensor:
-    if upcast_attention:
-        with torch.autocast(enabled=False, device_type = 'cuda'):
-            query = query.float()
-            key_t = key_t.float()
-            attn_scores = torch.baddbmm(
-                torch.empty(1, 1, 1, device=query.device, dtype=query.dtype),
-                query,
-                key_t,
-                alpha=scale,
-                beta=0,
-            )
-    else:
-        attn_scores = torch.baddbmm(
-            torch.empty(1, 1, 1, device=query.device, dtype=query.dtype),
-            query,
-            key_t,
-            alpha=scale,
-            beta=0,
-        )
+	if upcast_attention:
+	    with torch.autocast(enabled=False, device_type = 'cuda'):
+	        query = query.float()
+	        key_t = key_t.float()
+	        attn_scores = torch.baddbmm(
+	            torch.empty(1, 1, 1, device=query.device, dtype=query.dtype),
+	            query,
+	            key_t,
+	            alpha=scale,
+	            beta=0,
+	        )
+	else:
+	    attn_scores = torch.baddbmm(
+	        torch.empty(1, 1, 1, device=query.device, dtype=query.dtype),
+	        query,
+	        key_t,
+	        alpha=scale,
+	        beta=0,
+	    )
 
-    try:
-        attn_probs = attn_scores.softmax(dim=-1)
-        del attn_scores
-    except model_management.OOM_EXCEPTION:
-        print("ran out of memory while running softmax in  _get_attention_scores_no_kv_chunking, trying slower in place softmax instead")
-        attn_scores -= attn_scores.max(dim=-1, keepdim=True).values
-        torch.exp(attn_scores, out=attn_scores)
-        summed = torch.sum(attn_scores, dim=-1, keepdim=True)
-        attn_scores /= summed
-        attn_probs = attn_scores
+	try:
+	    attn_probs = attn_scores.softmax(dim=-1)
+	    del attn_scores
+	except model_management.OOM_EXCEPTION:
+	    print("ran out of memory while running softmax in  _get_attention_scores_no_kv_chunking, trying slower in place softmax instead")
+	    attn_scores -= attn_scores.max(dim=-1, keepdim=True).values
+	    torch.exp(attn_scores, out=attn_scores)
+	    summed = torch.sum(attn_scores, dim=-1, keepdim=True)
+	    attn_scores /= summed
+	    attn_probs = attn_scores
 
-    hidden_states_slice = torch.bmm(attn_probs.to(value.dtype), value)
-    return hidden_states_slice
+	return torch.bmm(attn_probs.to(value.dtype), value)
 
 class ScannedChunk(NamedTuple):
     chunk_idx: int

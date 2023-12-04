@@ -14,28 +14,28 @@ def load_lora(lora, to_load):
     patch_dict = {}
     loaded_keys = set()
     for x in to_load:
-        alpha_name = "{}.alpha".format(x)
+        alpha_name = f"{x}.alpha"
         alpha = None
         if alpha_name in lora.keys():
             alpha = lora[alpha_name].item()
             loaded_keys.add(alpha_name)
 
-        regular_lora = "{}.lora_up.weight".format(x)
-        diffusers_lora = "{}_lora.up.weight".format(x)
-        transformers_lora = "{}.lora_linear_layer.up.weight".format(x)
+        regular_lora = f"{x}.lora_up.weight"
+        diffusers_lora = f"{x}_lora.up.weight"
+        transformers_lora = f"{x}.lora_linear_layer.up.weight"
         A_name = None
 
         if regular_lora in lora.keys():
             A_name = regular_lora
-            B_name = "{}.lora_down.weight".format(x)
-            mid_name = "{}.lora_mid.weight".format(x)
+            B_name = f"{x}.lora_down.weight"
+            mid_name = f"{x}.lora_mid.weight"
         elif diffusers_lora in lora.keys():
             A_name = diffusers_lora
-            B_name = "{}_lora.down.weight".format(x)
+            B_name = f"{x}_lora.down.weight"
             mid_name = None
         elif transformers_lora in lora.keys():
             A_name = transformers_lora
-            B_name ="{}.lora_linear_layer.down.weight".format(x)
+            B_name = f"{x}.lora_linear_layer.down.weight"
             mid_name = None
 
         if A_name is not None:
@@ -49,12 +49,12 @@ def load_lora(lora, to_load):
 
 
         ######## loha
-        hada_w1_a_name = "{}.hada_w1_a".format(x)
-        hada_w1_b_name = "{}.hada_w1_b".format(x)
-        hada_w2_a_name = "{}.hada_w2_a".format(x)
-        hada_w2_b_name = "{}.hada_w2_b".format(x)
-        hada_t1_name = "{}.hada_t1".format(x)
-        hada_t2_name = "{}.hada_t2".format(x)
+        hada_w1_a_name = f"{x}.hada_w1_a"
+        hada_w1_b_name = f"{x}.hada_w1_b"
+        hada_w2_a_name = f"{x}.hada_w2_a"
+        hada_w2_b_name = f"{x}.hada_w2_b"
+        hada_t1_name = f"{x}.hada_t1"
+        hada_t2_name = f"{x}.hada_t2"
         if hada_w1_a_name in lora.keys():
             hada_t1 = None
             hada_t2 = None
@@ -72,13 +72,13 @@ def load_lora(lora, to_load):
 
 
         ######## lokr
-        lokr_w1_name = "{}.lokr_w1".format(x)
-        lokr_w2_name = "{}.lokr_w2".format(x)
-        lokr_w1_a_name = "{}.lokr_w1_a".format(x)
-        lokr_w1_b_name = "{}.lokr_w1_b".format(x)
-        lokr_t2_name = "{}.lokr_t2".format(x)
-        lokr_w2_a_name = "{}.lokr_w2_a".format(x)
-        lokr_w2_b_name = "{}.lokr_w2_b".format(x)
+        lokr_w1_name = f"{x}.lokr_w1"
+        lokr_w2_name = f"{x}.lokr_w2"
+        lokr_w1_a_name = f"{x}.lokr_w1_a"
+        lokr_w1_b_name = f"{x}.lokr_w1_b"
+        lokr_t2_name = f"{x}.lokr_t2"
+        lokr_w2_a_name = f"{x}.lokr_w2_a"
+        lokr_w2_b_name = f"{x}.lokr_w2_b"
 
         lokr_w1 = None
         if lokr_w1_name in lora.keys():
@@ -119,8 +119,8 @@ def load_lora(lora, to_load):
             patch_dict[to_load[x]] = (lokr_w1, lokr_w2, alpha, lokr_w1_a, lokr_w1_b, lokr_w2_a, lokr_w2_b, lokr_t2)
 
 
-        w_norm_name = "{}.w_norm".format(x)
-        b_norm_name = "{}.b_norm".format(x)
+        w_norm_name = f"{x}.w_norm"
+        b_norm_name = f"{x}.b_norm"
         w_norm = lora.get(w_norm_name, None)
         b_norm = lora.get(b_norm_name, None)
 
@@ -129,18 +129,18 @@ def load_lora(lora, to_load):
             patch_dict[to_load[x]] = (w_norm,)
             if b_norm is not None:
                 loaded_keys.add(b_norm_name)
-                patch_dict["{}.bias".format(to_load[x][:-len(".weight")])] = (b_norm,)
+                patch_dict[f'{to_load[x][:-len(".weight")]}.bias'] = (b_norm,)
 
-        diff_name = "{}.diff".format(x)
+        diff_name = f"{x}.diff"
         diff_weight = lora.get(diff_name, None)
         if diff_weight is not None:
             patch_dict[to_load[x]] = (diff_weight,)
             loaded_keys.add(diff_name)
 
-        diff_bias_name = "{}.diff_b".format(x)
+        diff_bias_name = f"{x}.diff_b"
         diff_bias = lora.get(diff_bias_name, None)
         if diff_bias is not None:
-            patch_dict["{}.bias".format(to_load[x][:-len(".weight")])] = (diff_bias,)
+            patch_dict[f'{to_load[x][:-len(".weight")]}.bias'] = (diff_bias,)
             loaded_keys.add(diff_bias_name)
 
     for x in lora.keys():
@@ -155,38 +155,36 @@ def model_lora_keys_clip(model, key_map={}):
     clip_l_present = False
     for b in range(32): #TODO: clean up
         for c in LORA_CLIP_MAP:
-            k = "clip_h.transformer.text_model.encoder.layers.{}.{}.weight".format(b, c)
+            k = f"clip_h.transformer.text_model.encoder.layers.{b}.{c}.weight"
             if k in sdk:
                 lora_key = text_model_lora_key.format(b, LORA_CLIP_MAP[c])
                 key_map[lora_key] = k
-                lora_key = "lora_te1_text_model_encoder_layers_{}_{}".format(b, LORA_CLIP_MAP[c])
+                lora_key = f"lora_te1_text_model_encoder_layers_{b}_{LORA_CLIP_MAP[c]}"
                 key_map[lora_key] = k
-                lora_key = "text_encoder.text_model.encoder.layers.{}.{}".format(b, c) #diffusers lora
+                lora_key = f"text_encoder.text_model.encoder.layers.{b}.{c}"
                 key_map[lora_key] = k
 
-            k = "clip_l.transformer.text_model.encoder.layers.{}.{}.weight".format(b, c)
+            k = f"clip_l.transformer.text_model.encoder.layers.{b}.{c}.weight"
             if k in sdk:
                 lora_key = text_model_lora_key.format(b, LORA_CLIP_MAP[c])
                 key_map[lora_key] = k
-                lora_key = "lora_te1_text_model_encoder_layers_{}_{}".format(b, LORA_CLIP_MAP[c]) #SDXL base
+                lora_key = f"lora_te1_text_model_encoder_layers_{b}_{LORA_CLIP_MAP[c]}"
                 key_map[lora_key] = k
                 clip_l_present = True
-                lora_key = "text_encoder.text_model.encoder.layers.{}.{}".format(b, c) #diffusers lora
+                lora_key = f"text_encoder.text_model.encoder.layers.{b}.{c}"
                 key_map[lora_key] = k
 
-            k = "clip_g.transformer.text_model.encoder.layers.{}.{}.weight".format(b, c)
+            k = f"clip_g.transformer.text_model.encoder.layers.{b}.{c}.weight"
             if k in sdk:
                 if clip_l_present:
-                    lora_key = "lora_te2_text_model_encoder_layers_{}_{}".format(b, LORA_CLIP_MAP[c]) #SDXL base
+                    lora_key = f"lora_te2_text_model_encoder_layers_{b}_{LORA_CLIP_MAP[c]}"
                     key_map[lora_key] = k
-                    lora_key = "text_encoder_2.text_model.encoder.layers.{}.{}".format(b, c) #diffusers lora
-                    key_map[lora_key] = k
+                    lora_key = f"text_encoder_2.text_model.encoder.layers.{b}.{c}"
                 else:
-                    lora_key = "lora_te_text_model_encoder_layers_{}_{}".format(b, LORA_CLIP_MAP[c]) #TODO: test if this is correct for SDXL-Refiner
+                    lora_key = f"lora_te_text_model_encoder_layers_{b}_{LORA_CLIP_MAP[c]}"
                     key_map[lora_key] = k
-                    lora_key = "text_encoder.text_model.encoder.layers.{}.{}".format(b, c) #diffusers lora
-                    key_map[lora_key] = k
-
+                    lora_key = f"text_encoder.text_model.encoder.layers.{b}.{c}"
+                key_map[lora_key] = k
     return key_map
 
 def model_lora_keys_unet(model, key_map={}):
@@ -195,18 +193,18 @@ def model_lora_keys_unet(model, key_map={}):
     for k in sdk:
         if k.startswith("diffusion_model.") and k.endswith(".weight"):
             key_lora = k[len("diffusion_model."):-len(".weight")].replace(".", "_")
-            key_map["lora_unet_{}".format(key_lora)] = k
+            key_map[f"lora_unet_{key_lora}"] = k
 
     diffusers_keys = fcbh.utils.unet_to_diffusers(model.model_config.unet_config)
     for k in diffusers_keys:
         if k.endswith(".weight"):
-            unet_key = "diffusion_model.{}".format(diffusers_keys[k])
+            unet_key = f"diffusion_model.{diffusers_keys[k]}"
             key_lora = k[:-len(".weight")].replace(".", "_")
-            key_map["lora_unet_{}".format(key_lora)] = unet_key
+            key_map[f"lora_unet_{key_lora}"] = unet_key
 
             diffusers_lora_prefix = ["", "unet."]
             for p in diffusers_lora_prefix:
-                diffusers_lora_key = "{}{}".format(p, k[:-len(".weight")].replace(".to_", ".processor.to_"))
+                diffusers_lora_key = f'{p}{k[:-len(".weight")].replace(".to_", ".processor.to_")}'
                 if diffusers_lora_key.endswith(".to_out.0"):
                     diffusers_lora_key = diffusers_lora_key[:-2]
                 key_map[diffusers_lora_key] = unet_key

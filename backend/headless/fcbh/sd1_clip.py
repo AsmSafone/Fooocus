@@ -22,7 +22,7 @@ def gen_empty_tokens(special_tokens, length):
 
 class ClipTokenWeightEncoder:
     def encode_token_weights(self, token_weight_pairs):
-        to_encode = list()
+        to_encode = []
         max_token_len = 0
         has_weights = False
         for x in token_weight_pairs:
@@ -36,11 +36,7 @@ class ClipTokenWeightEncoder:
             to_encode.append(gen_empty_tokens(self.special_tokens, max_token_len))
 
         out, pooled = self.encode(to_encode)
-        if pooled is not None:
-            first_pooled = pooled[0:1].cpu()
-        else:
-            first_pooled = pooled
-
+        first_pooled = pooled[:1].cpu() if pooled is not None else pooled
         output = []
         for k in range(0, sections):
             z = out[k:k+1]
@@ -53,7 +49,7 @@ class ClipTokenWeightEncoder:
                             z[i][j] = (z[i][j] - z_empty[j]) * weight + z_empty[j]
             output.append(z)
 
-        if (len(output) == 0):
+        if not output:
             return out[-1:].cpu(), first_pooled
         return torch.cat(output, dim=-2).cpu(), first_pooled
 
@@ -137,13 +133,12 @@ class SDClipModel(torch.nn.Module, ClipTokenWeightEncoder):
                     if y == token_dict_size: #EOS token
                         y = -1
                     tokens_temp += [y]
+                elif y.shape[0] == current_embeds.weight.shape[1]:
+                    embedding_weights += [y]
+                    tokens_temp += [next_new_token]
+                    next_new_token += 1
                 else:
-                    if y.shape[0] == current_embeds.weight.shape[1]:
-                        embedding_weights += [y]
-                        tokens_temp += [next_new_token]
-                        next_new_token += 1
-                    else:
-                        print("WARNING: shape mismatch when trying to apply embedding, embedding will be ignored", y.shape[0], current_embeds.weight.shape[1])
+                    print("WARNING: shape mismatch when trying to apply embedding, embedding will be ignored", y.shape[0], current_embeds.weight.shape[1])
             while len(tokens_temp) < len(x):
                 tokens_temp += [self.special_tokens["pad"]]
             out_tokens += [tokens_temp]
@@ -158,11 +153,7 @@ class SDClipModel(torch.nn.Module, ClipTokenWeightEncoder):
             new_embedding.weight[n] = current_embeds.weight[-1] #EOS embedding
             self.transformer.set_input_embeddings(new_embedding)
 
-        processed_tokens = []
-        for x in out_tokens:
-            processed_tokens += [list(map(lambda a: n if a == -1 else a, x))] #The EOS token should always be the largest one
-
-        return processed_tokens
+        return [list(map(lambda a: n if a == -1 else a, x)) for x in out_tokens]
 
     def forward(self, tokens):
         backup_embeds = self.transformer.get_input_embeddings()
@@ -226,16 +217,14 @@ def parse_parentheses(string):
             if nesting_level == 0:
                 if current_item:
                     result.append(current_item)
-                    current_item = "("
-                else:
-                    current_item = "("
+                current_item = "("
             else:
                 current_item += char
             nesting_level += 1
         elif char == ")":
             nesting_level -= 1
             if nesting_level == 0:
-                result.append(current_item + ")")
+                result.append(f"{current_item})")
                 current_item = ""
             else:
                 current_item += char
@@ -340,14 +329,13 @@ def load_embed(embedding_name, embedding_directory, embedding_size, embed_key=No
         if embed_path.lower().endswith(".safetensors"):
             import safetensors.torch
             embed = safetensors.torch.load_file(embed_path, device="cpu")
+        elif 'weights_only' in torch.load.__code__.co_varnames:
+            try:
+                embed = torch.load(embed_path, weights_only=True, map_location="cpu")
+            except:
+                embed_out = safe_load_embed_zip(embed_path)
         else:
-            if 'weights_only' in torch.load.__code__.co_varnames:
-                try:
-                    embed = torch.load(embed_path, weights_only=True, map_location="cpu")
-                except:
-                    embed_out = safe_load_embed_zip(embed_path)
-            else:
-                embed = torch.load(embed_path, map_location="cpu")
+            embed = torch.load(embed_path, map_location="cpu")
     except Exception as e:
         print(traceback.format_exc())
         print()
@@ -422,11 +410,7 @@ class SDTokenizer:
         Word id values are unique per word and embedding, where the id 0 is reserved for non word tokens.
         Returned list has the dimensions NxM where M is the input size of CLIP
         '''
-        if self.pad_with_end:
-            pad_token = self.end_token
-        else:
-            pad_token = 0
-
+        pad_token = self.end_token if self.pad_with_end else 0
         text = escape_important(text)
         parsed_weights = token_weights(text, 1.0)
 
@@ -442,11 +426,10 @@ class SDTokenizer:
                     embed, leftover = self._try_get_embedding(embedding_name)
                     if embed is None:
                         print(f"warning, embedding:{embedding_name} does not exist, ignoring")
+                    elif len(embed.shape) == 1:
+                        tokens.append([(embed, weight)])
                     else:
-                        if len(embed.shape) == 1:
-                            tokens.append([(embed, weight)])
-                        else:
-                            tokens.append([(embed[x], weight) for x in range(embed.shape[0])])
+                        tokens.append([(embed[x], weight) for x in range(embed.shape[0])])
                     #if we accidentally have leftover text, continue parsing using leftover, else move on to next word
                     if leftover != "":
                         word = leftover
@@ -455,12 +438,10 @@ class SDTokenizer:
                 #parse word
                 tokens.append([(t, weight) for t in self.tokenizer(word)["input_ids"][self.tokens_start:-1]])
 
-        #reshape token array to CLIP input size
-        batched_tokens = []
         batch = []
         if self.start_token is not None:
             batch.append((self.start_token, 1.0, 0))
-        batched_tokens.append(batch)
+        batched_tokens = [batch]
         for i, t_group in enumerate(tokens):
             #determine if we're going to try and keep the tokens in a single batch
             is_large = len(t_group) >= self.max_word_length
@@ -505,13 +486,15 @@ class SDTokenizer:
 class SD1Tokenizer:
     def __init__(self, embedding_directory=None, clip_name="l", tokenizer=SDTokenizer):
         self.clip_name = clip_name
-        self.clip = "clip_{}".format(self.clip_name)
+        self.clip = f"clip_{self.clip_name}"
         setattr(self, self.clip, tokenizer(embedding_directory=embedding_directory))
 
     def tokenize_with_weights(self, text:str, return_word_ids=False):
-        out = {}
-        out[self.clip_name] = getattr(self, self.clip).tokenize_with_weights(text, return_word_ids)
-        return out
+        return {
+            self.clip_name: getattr(self, self.clip).tokenize_with_weights(
+                text, return_word_ids
+            )
+        }
 
     def untokenize(self, token_weight_pair):
         return getattr(self, self.clip).untokenize(token_weight_pair)
@@ -521,7 +504,7 @@ class SD1ClipModel(torch.nn.Module):
     def __init__(self, device="cpu", dtype=None, clip_name="l", clip_model=SDClipModel, **kwargs):
         super().__init__()
         self.clip_name = clip_name
-        self.clip = "clip_{}".format(self.clip_name)
+        self.clip = f"clip_{self.clip_name}"
         setattr(self, self.clip, clip_model(device=device, dtype=dtype, **kwargs))
 
     def clip_layer(self, layer_idx):

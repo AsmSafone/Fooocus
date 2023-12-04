@@ -38,8 +38,7 @@ class SD15(supported_models_base.BASE):
             if ids.dtype == torch.float32:
                 state_dict['cond_stage_model.transformer.text_model.embeddings.position_ids'] = ids.round()
 
-        replace_prefix = {}
-        replace_prefix["cond_stage_model."] = "cond_stage_model.clip_l."
+        replace_prefix = {"cond_stage_model.": "cond_stage_model.clip_l."}
         state_dict = utils.state_dict_prefix_replace(state_dict, replace_prefix)
         return state_dict
 
@@ -62,7 +61,7 @@ class SD20(supported_models_base.BASE):
 
     def model_type(self, state_dict, prefix=""):
         if self.unet_config["in_channels"] == 4: #SD2.0 inpainting models are not v prediction
-            k = "{}output_blocks.11.1.transformer_blocks.0.norm1.bias".format(prefix)
+            k = f"{prefix}output_blocks.11.1.transformer_blocks.0.norm1.bias"
             out = state_dict[k]
             if torch.std(out, unbiased=False) > 0.09: # not sure how well this will actually work. I guess we will find out.
                 return model_base.ModelType.V_PREDICTION
@@ -73,8 +72,7 @@ class SD20(supported_models_base.BASE):
         return state_dict
 
     def process_clip_state_dict_for_saving(self, state_dict):
-        replace_prefix = {}
-        replace_prefix["clip_h"] = "cond_stage_model.model"
+        replace_prefix = {"clip_h": "cond_stage_model.model"}
         state_dict = utils.state_dict_prefix_replace(state_dict, replace_prefix)
         state_dict = diffusers_convert.convert_text_enc_state_dict_v20(state_dict)
         return state_dict
@@ -120,22 +118,21 @@ class SDXLRefiner(supported_models_base.BASE):
         return model_base.SDXLRefiner(self, device=device)
 
     def process_clip_state_dict(self, state_dict):
-        keys_to_replace = {}
         replace_prefix = {}
 
         state_dict = utils.transformers_convert(state_dict, "conditioner.embedders.0.model.", "cond_stage_model.clip_g.transformer.text_model.", 32)
-        keys_to_replace["conditioner.embedders.0.model.text_projection"] = "cond_stage_model.clip_g.text_projection"
-        keys_to_replace["conditioner.embedders.0.model.logit_scale"] = "cond_stage_model.clip_g.logit_scale"
-
+        keys_to_replace = {
+            "conditioner.embedders.0.model.text_projection": "cond_stage_model.clip_g.text_projection",
+            "conditioner.embedders.0.model.logit_scale": "cond_stage_model.clip_g.logit_scale",
+        }
         state_dict = utils.state_dict_key_replace(state_dict, keys_to_replace)
         return state_dict
 
     def process_clip_state_dict_for_saving(self, state_dict):
-        replace_prefix = {}
         state_dict_g = diffusers_convert.convert_text_enc_state_dict_v20(state_dict, "clip_g")
         if "clip_g.transformer.text_model.embeddings.position_ids" in state_dict_g:
             state_dict_g.pop("clip_g.transformer.text_model.embeddings.position_ids")
-        replace_prefix["clip_g"] = "conditioner.embedders.0.model"
+        replace_prefix = {"clip_g": "conditioner.embedders.0.model"}
         state_dict_g = utils.state_dict_prefix_replace(state_dict_g, replace_prefix)
         return state_dict_g
 
@@ -166,21 +163,21 @@ class SDXL(supported_models_base.BASE):
         return out
 
     def process_clip_state_dict(self, state_dict):
-        keys_to_replace = {}
-        replace_prefix = {}
+        replace_prefix = {
+            "conditioner.embedders.0.transformer.text_model": "cond_stage_model.clip_l.transformer.text_model"
+        }
 
-        replace_prefix["conditioner.embedders.0.transformer.text_model"] = "cond_stage_model.clip_l.transformer.text_model"
         state_dict = utils.transformers_convert(state_dict, "conditioner.embedders.1.model.", "cond_stage_model.clip_g.transformer.text_model.", 32)
-        keys_to_replace["conditioner.embedders.1.model.text_projection"] = "cond_stage_model.clip_g.text_projection"
-        keys_to_replace["conditioner.embedders.1.model.text_projection.weight"] = "cond_stage_model.clip_g.text_projection"
-        keys_to_replace["conditioner.embedders.1.model.logit_scale"] = "cond_stage_model.clip_g.logit_scale"
-
+        keys_to_replace = {
+            "conditioner.embedders.1.model.text_projection": "cond_stage_model.clip_g.text_projection",
+            "conditioner.embedders.1.model.text_projection.weight": "cond_stage_model.clip_g.text_projection",
+            "conditioner.embedders.1.model.logit_scale": "cond_stage_model.clip_g.logit_scale",
+        }
         state_dict = utils.state_dict_prefix_replace(state_dict, replace_prefix)
         state_dict = utils.state_dict_key_replace(state_dict, keys_to_replace)
         return state_dict
 
     def process_clip_state_dict_for_saving(self, state_dict):
-        replace_prefix = {}
         keys_to_replace = {}
         state_dict_g = diffusers_convert.convert_text_enc_state_dict_v20(state_dict, "clip_g")
         if "clip_g.transformer.text_model.embeddings.position_ids" in state_dict_g:
@@ -189,8 +186,10 @@ class SDXL(supported_models_base.BASE):
             if k.startswith("clip_l"):
                 state_dict_g[k] = state_dict[k]
 
-        replace_prefix["clip_g"] = "conditioner.embedders.1.model"
-        replace_prefix["clip_l"] = "conditioner.embedders.0"
+        replace_prefix = {
+            "clip_g": "conditioner.embedders.1.model",
+            "clip_l": "conditioner.embedders.0",
+        }
         state_dict_g = utils.state_dict_prefix_replace(state_dict_g, replace_prefix)
         return state_dict_g
 

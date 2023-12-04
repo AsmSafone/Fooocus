@@ -38,19 +38,14 @@ class ModelPatcher:
 
     def clone(self):
         n = ModelPatcher(self.model, self.load_device, self.offload_device, self.size, self.current_device, weight_inplace_update=self.weight_inplace_update)
-        n.patches = {}
-        for k in self.patches:
-            n.patches[k] = self.patches[k][:]
-
+        n.patches = {k: self.patches[k][:] for k in self.patches}
         n.object_patches = self.object_patches.copy()
         n.model_options = copy.deepcopy(self.model_options)
         n.model_keys = self.model_keys
         return n
 
     def is_clone(self, other):
-        if hasattr(other, 'model') and self.model is other.model:
-            return True
-        return False
+        return bool(hasattr(other, 'model') and self.model is other.model)
 
     def memory_required(self, input_shape):
         return self.model.memory_required(input_shape=input_shape)
@@ -220,7 +215,9 @@ class ModelPatcher:
                 w1 = v[0]
                 if alpha != 0.0:
                     if w1.shape != weight.shape:
-                        print("WARNING SHAPE MISMATCH {} WEIGHT NOT MERGED {} != {}".format(key, w1.shape, weight.shape))
+                        print(
+                            f"WARNING SHAPE MISMATCH {key} WEIGHT NOT MERGED {w1.shape} != {weight.shape}"
+                        )
                     else:
                         weight += alpha * fcbh.model_management.cast_to_device(w1, weight.device, weight.dtype)
             elif len(v) == 4: #lora/locon

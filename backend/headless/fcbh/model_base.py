@@ -60,8 +60,7 @@ class BaseModel(torch.nn.Module):
         t = self.model_sampling.timestep(t).float()
         context = context.to(dtype)
         extra_conds = {}
-        for o in kwargs:
-            extra = kwargs[o]
+        for o, extra in kwargs.items():
             if hasattr(extra, "to"):
                 extra = extra.to(dtype)
             extra_conds[o] = extra
@@ -115,12 +114,12 @@ class BaseModel(torch.nn.Module):
         return out
 
     def load_model_weights(self, sd, unet_prefix=""):
-        to_load = {}
         keys = list(sd.keys())
-        for k in keys:
-            if k.startswith(unet_prefix):
-                to_load[k[len(unet_prefix):]] = sd.pop(k)
-
+        to_load = {
+            k[len(unet_prefix) :]: sd.pop(k)
+            for k in keys
+            if k.startswith(unet_prefix)
+        }
         to_load = self.model_config.process_unet_state_dict(to_load)
         m, u = self.diffusion_model.load_state_dict(to_load, strict=False)
         if len(m) > 0:
@@ -140,10 +139,12 @@ class BaseModel(torch.nn.Module):
     def state_dict_for_saving(self, clip_state_dict, vae_state_dict):
         clip_state_dict = self.model_config.process_clip_state_dict_for_saving(clip_state_dict)
         unet_sd = self.diffusion_model.state_dict()
-        unet_state_dict = {}
-        for k in unet_sd:
-            unet_state_dict[k] = fcbh.model_management.resolve_lowvram_weight(unet_sd[k], self.diffusion_model, k)
-
+        unet_state_dict = {
+            k: fcbh.model_management.resolve_lowvram_weight(
+                unet_sd[k], self.diffusion_model, k
+            )
+            for k in unet_sd
+        }
         unet_state_dict = self.model_config.process_unet_state_dict_for_saving(unet_state_dict)
         vae_state_dict = self.model_config.process_vae_state_dict_for_saving(vae_state_dict)
         if self.get_dtype() == torch.float16:
@@ -199,11 +200,10 @@ class SD21UNCLIP(BaseModel):
 
     def encode_adm(self, **kwargs):
         unclip_conditioning = kwargs.get("unclip_conditioning", None)
-        device = kwargs["device"]
         if unclip_conditioning is None:
             return torch.zeros((1, self.adm_channels))
-        else:
-            return unclip_adm(unclip_conditioning, device, self.noise_augmentor, kwargs.get("unclip_noise_augment_merge", 0.05))
+        device = kwargs["device"]
+        return unclip_adm(unclip_conditioning, device, self.noise_augmentor, kwargs.get("unclip_noise_augment_merge", 0.05))
 
 def sdxl_pooled(args, noise_augmentor):
     if "unclip_conditioning" in args:
@@ -224,13 +224,12 @@ class SDXLRefiner(BaseModel):
         crop_w = kwargs.get("crop_w", 0)
         crop_h = kwargs.get("crop_h", 0)
 
-        if kwargs.get("prompt_type", "") == "negative":
-            aesthetic_score = kwargs.get("aesthetic_score", 2.5)
-        else:
-            aesthetic_score = kwargs.get("aesthetic_score", 6)
-
-        out = []
-        out.append(self.embedder(torch.Tensor([height])))
+        aesthetic_score = (
+            kwargs.get("aesthetic_score", 2.5)
+            if kwargs.get("prompt_type", "") == "negative"
+            else kwargs.get("aesthetic_score", 6)
+        )
+        out = [self.embedder(torch.Tensor([height]))]
         out.append(self.embedder(torch.Tensor([width])))
         out.append(self.embedder(torch.Tensor([crop_h])))
         out.append(self.embedder(torch.Tensor([crop_w])))
@@ -253,8 +252,7 @@ class SDXL(BaseModel):
         target_width = kwargs.get("target_width", width)
         target_height = kwargs.get("target_height", height)
 
-        out = []
-        out.append(self.embedder(torch.Tensor([height])))
+        out = [self.embedder(torch.Tensor([height]))]
         out.append(self.embedder(torch.Tensor([width])))
         out.append(self.embedder(torch.Tensor([crop_h])))
         out.append(self.embedder(torch.Tensor([crop_w])))

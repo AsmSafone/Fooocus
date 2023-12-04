@@ -35,9 +35,7 @@ def uniq(arr):
 
 
 def default(val, d):
-    if exists(val):
-        return val
-    return d
+    return val if exists(val) else d
 
 
 def max_neg_value(t):
@@ -209,12 +207,7 @@ def attention_split(q, k, v, heads, mask=None):
 
     mem_free_total = model_management.get_free_memory(q.device)
 
-    if _ATTN_PRECISION =="fp32":
-        element_size = 4
-    else:
-        element_size = q.element_size()
-
-    gb = 1024 ** 3
+    element_size = 4 if _ATTN_PRECISION =="fp32" else q.element_size()
     tensor_size = q.shape[0] * q.shape[1] * k.shape[1] * element_size
     modifier = 3
     mem_required = tensor_size * modifier
@@ -228,6 +221,7 @@ def attention_split(q, k, v, heads, mask=None):
 
     if steps > 64:
         max_res = math.floor(math.sqrt(math.sqrt(mem_free_total / 2.5)) / 8) * 64
+        gb = 1024 ** 3
         raise RuntimeError(f'Not enough memory, use lower resolution (max approx. {max_res}x{max_res}). '
                             f'Need: {mem_required/64/gb:0.1f}GB free, Have:{mem_free_total/gb:0.1f}GB free')
 
@@ -253,19 +247,18 @@ def attention_split(q, k, v, heads, mask=None):
                 del s2
             break
         except model_management.OOM_EXCEPTION as e:
-            if first_op_done == False:
-                model_management.soft_empty_cache(True)
-                if cleared_cache == False:
-                    cleared_cache = True
-                    print("out of memory error, emptying cache and trying again")
-                    continue
-                steps *= 2
-                if steps > 64:
-                    raise e
-                print("out of memory error, increasing steps and trying again", steps)
-            else:
+            if first_op_done != False:
                 raise e
 
+            model_management.soft_empty_cache(True)
+            if cleared_cache == False:
+                cleared_cache = True
+                print("out of memory error, emptying cache and trying again")
+                continue
+            steps *= 2
+            if steps > 64:
+                raise e
+            print("out of memory error, increasing steps and trying again", steps)
     del q, k, v
 
     r1 = (
@@ -326,13 +319,12 @@ if model_management.xformers_enabled():
 elif model_management.pytorch_attention_enabled():
     print("Using pytorch cross attention")
     optimized_attention = attention_pytorch
+elif args.use_split_cross_attention:
+    print("Using split optimization for cross attention")
+    optimized_attention = attention_split
 else:
-    if args.use_split_cross_attention:
-        print("Using split optimization for cross attention")
-        optimized_attention = attention_split
-    else:
-        print("Using sub quadratic optimization for cross attention, if you have memory or speed issues try using: --use-split-cross-attention")
-        optimized_attention = attention_sub_quad
+    print("Using sub quadratic optimization for cross attention, if you have memory or speed issues try using: --use-split-cross-attention")
+    optimized_attention = attention_sub_quad
 
 if model_management.pytorch_attention_enabled():
     optimized_attention_masked = attention_pytorch
@@ -419,10 +411,7 @@ class BasicTransformerBlock(nn.Module):
             transformer_patches_replace = {}
 
         n = self.norm1(x)
-        if self.disable_self_attn:
-            context_attn1 = context
-        else:
-            context_attn1 = None
+        context_attn1 = context if self.disable_self_attn else None
         value_attn1 = None
 
         if "attn1_patch" in transformer_patches:

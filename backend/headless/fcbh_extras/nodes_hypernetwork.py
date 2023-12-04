@@ -49,8 +49,8 @@ def load_hypernetwork_patch(path, strength):
                 last_layer = (i == (len(linears) - 1))
                 penultimate_layer = (i == (len(linears) - 2))
 
-                lin_weight = attn_weights['{}.weight'.format(lin_name)]
-                lin_bias = attn_weights['{}.bias'.format(lin_name)]
+                lin_weight = attn_weights[f'{lin_name}.weight']
+                lin_bias = attn_weights[f'{lin_name}.bias']
                 layer = torch.nn.Linear(lin_weight.shape[1], lin_weight.shape[0])
                 layer.load_state_dict({"weight": lin_weight, "bias": lin_bias})
                 layers.append(layer)
@@ -60,8 +60,8 @@ def load_hypernetwork_patch(path, strength):
                 if is_layer_norm:
                     i += 1
                     ln_name = linears[i]
-                    ln_weight = attn_weights['{}.weight'.format(ln_name)]
-                    ln_bias = attn_weights['{}.bias'.format(ln_name)]
+                    ln_weight = attn_weights[f'{ln_name}.weight']
+                    ln_bias = attn_weights[f'{ln_name}.bias']
                     ln = torch.nn.LayerNorm(ln_weight.shape[0])
                     ln.load_state_dict({"weight": ln_weight, "bias": ln_bias})
                     layers.append(ln)
@@ -95,7 +95,7 @@ def load_hypernetwork_patch(path, strength):
 
 class HypernetworkLoader:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "model": ("MODEL",),
                               "hypernetwork_name": (folder_paths.get_filename_list("hypernetworks"), ),
                               "strength": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),

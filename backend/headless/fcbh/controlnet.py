@@ -141,11 +141,7 @@ class ControlNet(ControlBase):
 
         if self.timestep_range is not None:
             if t[0] > self.timestep_range[0] or t[0] < self.timestep_range[1]:
-                if control_prev is not None:
-                    return control_prev
-                else:
-                    return None
-
+                return control_prev if control_prev is not None else None
         output_dtype = x_noisy.dtype
         if self.cond_hint is None or x_noisy.shape[2] * 8 != self.cond_hint.shape[2] or x_noisy.shape[3] * 8 != self.cond_hint.shape[3]:
             if self.cond_hint is not None:
@@ -291,8 +287,7 @@ class ControlLora(ControlNet):
         super().cleanup()
 
     def get_models(self):
-        out = ControlBase.get_models(self)
-        return out
+        return ControlBase.get_models(self)
 
     def inference_memory_requirements(self, dtype):
         return fcbh.utils.calculate_parameters(self.control_weights) * fcbh.model_management.dtype_size(dtype) + ControlBase.inference_memory_requirements(self, dtype)
@@ -315,8 +310,8 @@ def load_controlnet(ckpt_path, model=None):
         while loop:
             suffix = [".weight", ".bias"]
             for s in suffix:
-                k_in = "controlnet_down_blocks.{}{}".format(count, s)
-                k_out = "zero_convs.{}.0{}".format(count, s)
+                k_in = f"controlnet_down_blocks.{count}{s}"
+                k_out = f"zero_convs.{count}.0{s}"
                 if k_in not in controlnet_data:
                     loop = False
                     break
@@ -329,21 +324,21 @@ def load_controlnet(ckpt_path, model=None):
             suffix = [".weight", ".bias"]
             for s in suffix:
                 if count == 0:
-                    k_in = "controlnet_cond_embedding.conv_in{}".format(s)
+                    k_in = f"controlnet_cond_embedding.conv_in{s}"
                 else:
-                    k_in = "controlnet_cond_embedding.blocks.{}{}".format(count - 1, s)
-                k_out = "input_hint_block.{}{}".format(count * 2, s)
+                    k_in = f"controlnet_cond_embedding.blocks.{count - 1}{s}"
+                k_out = f"input_hint_block.{count * 2}{s}"
                 if k_in not in controlnet_data:
-                    k_in = "controlnet_cond_embedding.conv_out{}".format(s)
+                    k_in = f"controlnet_cond_embedding.conv_out{s}"
                     loop = False
                 diffusers_keys[k_in] = k_out
             count += 1
 
-        new_sd = {}
-        for k in diffusers_keys:
-            if k in controlnet_data:
-                new_sd[diffusers_keys[k]] = controlnet_data.pop(k)
-
+        new_sd = {
+            diffusers_keys[k]: controlnet_data.pop(k)
+            for k in diffusers_keys
+            if k in controlnet_data
+        }
         leftover_keys = controlnet_data.keys()
         if len(leftover_keys) > 0:
             print("leftover keys:", leftover_keys)
@@ -368,7 +363,9 @@ def load_controlnet(ckpt_path, model=None):
         unet_dtype = fcbh.model_management.unet_dtype()
         controlnet_config = fcbh.model_detection.model_config_from_unet(controlnet_data, prefix, unet_dtype, True).unet_config
     controlnet_config.pop("out_channels")
-    controlnet_config["hint_channels"] = controlnet_data["{}input_hint_block.0.weight".format(prefix)].shape[1]
+    controlnet_config["hint_channels"] = controlnet_data[
+        f"{prefix}input_hint_block.0.weight"
+    ].shape[1]
     control_model = fcbh.cldm.cldm.ControlNet(**controlnet_config)
 
     if pth:
@@ -376,10 +373,10 @@ def load_controlnet(ckpt_path, model=None):
             if model is not None:
                 fcbh.model_management.load_models_gpu([model])
                 model_sd = model.model_state_dict()
+                c_m = "control_model."
                 for x in controlnet_data:
-                    c_m = "control_model."
                     if x.startswith(c_m):
-                        sd_key = "diffusion_model.{}".format(x[len(c_m):])
+                        sd_key = f"diffusion_model.{x[len(c_m):]}"
                         if sd_key in model_sd:
                             cd = controlnet_data[x]
                             cd += model_sd[sd_key].type(cd.dtype).to(cd.device)
@@ -397,13 +394,11 @@ def load_controlnet(ckpt_path, model=None):
 
     control_model = control_model.to(unet_dtype)
 
-    global_average_pooling = False
     filename = os.path.splitext(ckpt_path)[0]
-    if filename.endswith("_shuffle") or filename.endswith("_shuffle_fp16"): #TODO: smarter way of enabling global_average_pooling
-        global_average_pooling = True
-
-    control = ControlNet(control_model, global_average_pooling=global_average_pooling)
-    return control
+    global_average_pooling = bool(
+        filename.endswith("_shuffle") or filename.endswith("_shuffle_fp16")
+    )
+    return ControlNet(control_model, global_average_pooling=global_average_pooling)
 
 class T2IAdapter(ControlBase):
     def __init__(self, t2i_model, channels_in, device=None):
@@ -425,11 +420,7 @@ class T2IAdapter(ControlBase):
 
         if self.timestep_range is not None:
             if t[0] > self.timestep_range[0] or t[0] < self.timestep_range[1]:
-                if control_prev is not None:
-                    return control_prev
-                else:
-                    return None
-
+                return control_prev if control_prev is not None else None
         if self.cond_hint is None or x_noisy.shape[2] * 8 != self.cond_hint.shape[2] or x_noisy.shape[3] * 8 != self.cond_hint.shape[3]:
             if self.cond_hint is not None:
                 del self.cond_hint
@@ -466,8 +457,8 @@ def load_t2i_adapter(t2i_data):
         prefix_replace = {}
         for i in range(4):
             for j in range(2):
-                prefix_replace["adapter.body.{}.resnets.{}.".format(i, j)] = "body.{}.".format(i * 2 + j)
-            prefix_replace["adapter.body.{}.".format(i, j)] = "body.{}.".format(i * 2)
+                prefix_replace[f"adapter.body.{i}.resnets.{j}."] = f"body.{i * 2 + j}."
+            prefix_replace[f"adapter.body.{i}."] = f"body.{i * 2}."
         prefix_replace["adapter."] = ""
         t2i_data = fcbh.utils.state_dict_prefix_replace(t2i_data, prefix_replace)
     keys = t2i_data.keys()
@@ -479,13 +470,9 @@ def load_t2i_adapter(t2i_data):
         cin = t2i_data['conv_in.weight'].shape[1]
         channel = t2i_data['conv_in.weight'].shape[0]
         ksize = t2i_data['body.0.block2.weight'].shape[2]
-        use_conv = False
         down_opts = list(filter(lambda a: a.endswith("down_opt.op.weight"), keys))
-        if len(down_opts) > 0:
-            use_conv = True
-        xl = False
-        if cin == 256 or cin == 768:
-            xl = True
+        use_conv = bool(down_opts)
+        xl = cin in [256, 768]
         model_ad = fcbh.t2i_adapter.adapter.Adapter(cin=cin, channels=[channel, channel*2, channel*4, channel*4][:4], nums_rb=2, ksize=ksize, sk=True, use_conv=use_conv, xl=xl)
     else:
         return None

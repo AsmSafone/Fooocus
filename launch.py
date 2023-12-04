@@ -2,7 +2,7 @@ import os
 import sys
 
 
-print('[System ARGV] ' + str(sys.argv))
+print(f'[System ARGV] {str(sys.argv)}')
 
 root = os.path.dirname(os.path.abspath(__file__))
 backend_path = os.path.join(root, 'backend', 'headless')

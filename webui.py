@@ -79,7 +79,7 @@ reload_javascript()
 title = f'Fooocus {fooocus_version.version}'
 
 if isinstance(args_manager.args.preset, str):
-    title += ' ' + args_manager.args.preset
+    title += f' {args_manager.args.preset}'
 
 shared.gradio_root = gr.Blocks(
     title=title,
@@ -225,16 +225,14 @@ with shared.gradio_root:
                     return gr.update(visible=not r)
 
                 def refresh_seed(r, seed_string):
-                    if r:
-                        return random.randint(constants.MIN_SEED, constants.MAX_SEED)
-                    else:
+                    if not r:
                         try:
                             seed_value = int(seed_string)
                             if constants.MIN_SEED <= seed_value <= constants.MAX_SEED:
                                 return seed_value
                         except ValueError:
                             pass
-                        return random.randint(constants.MIN_SEED, constants.MAX_SEED)
+                    return random.randint(constants.MIN_SEED, constants.MAX_SEED)
 
                 seed_random.change(random_checked, inputs=[seed_random], outputs=[image_seed],
                                    queue=False, show_progress=False)
@@ -436,7 +434,7 @@ with shared.gradio_root:
                     modules.config.update_all_model_names()
                     results = []
                     results += [gr.update(choices=modules.config.model_filenames), gr.update(choices=['None'] + modules.config.model_filenames)]
-                    for i in range(5):
+                    for _ in range(5):
                         results += [gr.update(choices=['None'] + modules.config.lora_filenames), gr.update()]
                     return results
 
