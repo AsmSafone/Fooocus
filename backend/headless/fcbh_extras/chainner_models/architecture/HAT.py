@@ -24,8 +24,7 @@ def drop_path(x, drop_prob: float = 0.0, training: bool = False):
     )  # work with diff dim tensors, not just 2D ConvNets
     random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
     random_tensor.floor_()  # binarize
-    output = x.div(keep_prob) * random_tensor
-    return output
+    return x.div(keep_prob) * random_tensor
 
 
 class DropPath(nn.Module):
@@ -114,10 +113,11 @@ def window_partition(x, window_size):
     """
     b, h, w, c = x.shape
     x = x.view(b, h // window_size, window_size, w // window_size, window_size, c)
-    windows = (
-        x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, c)
+    return (
+        x.permute(0, 1, 3, 2, 4, 5)
+        .contiguous()
+        .view(-1, window_size, window_size, c)
     )
-    return windows
 
 
 def window_reverse(windows, window_size, h, w):
@@ -219,10 +219,7 @@ class WindowAttention(nn.Module):
                 1
             ).unsqueeze(0)
             attn = attn.view(-1, self.num_heads, n, n)
-            attn = self.softmax(attn)
-        else:
-            attn = self.softmax(attn)
-
+        attn = self.softmax(attn)
         attn = self.attn_drop(attn)
 
         x = (attn @ v).transpose(1, 2).reshape(b_, n, c)
@@ -772,10 +769,7 @@ class PatchEmbed(nn.Module):
         self.in_chans = in_chans
         self.embed_dim = embed_dim
 
-        if norm_layer is not None:
-            self.norm = norm_layer(embed_dim)
-        else:
-            self.norm = None
+        self.norm = norm_layer(embed_dim) if norm_layer is not None else None
 
     def forward(self, x):
         x = x.flatten(2).transpose(1, 2)  # b Ph*Pw c
@@ -832,11 +826,9 @@ class Upsample(nn.Sequential):
         m = []
         if (scale & (scale - 1)) == 0:  # scale = 2^n
             for _ in range(int(math.log(scale, 2))):
-                m.append(nn.Conv2d(num_feat, 4 * num_feat, 3, 1, 1))
-                m.append(nn.PixelShuffle(2))
+                m.extend((nn.Conv2d(num_feat, 4 * num_feat, 3, 1, 1), nn.PixelShuffle(2)))
         elif scale == 3:
-            m.append(nn.Conv2d(num_feat, 9 * num_feat, 3, 1, 1))
-            m.append(nn.PixelShuffle(3))
+            m.extend((nn.Conv2d(num_feat, 9 * num_feat, 3, 1, 1), nn.PixelShuffle(3)))
         else:
             raise ValueError(
                 f"scale {scale} is not supported. " "Supported scales: 2^n and 3."

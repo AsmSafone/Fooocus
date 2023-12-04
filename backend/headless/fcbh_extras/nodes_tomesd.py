@@ -128,8 +128,6 @@ def get_functions(x, ratio, original_shape):
     b, c, original_h, original_w = original_shape
     original_tokens = original_h * original_w
     downsample = int(math.ceil(math.sqrt(original_tokens // x.shape[1])))
-    stride_x = 2
-    stride_y = 2
     max_downsample = 1
 
     if downsample <= max_downsample:
@@ -137,6 +135,8 @@ def get_functions(x, ratio, original_shape):
         h = int(math.ceil(original_h / downsample))
         r = int(x.shape[1] * ratio)
         no_rand = False
+        stride_x = 2
+        stride_y = 2
         m, u = bipartite_soft_matching_random2d(x, w, h, stride_x, stride_y, r, no_rand)
         return m, u
 
@@ -147,7 +147,7 @@ def get_functions(x, ratio, original_shape):
 
 class TomePatchModel:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "model": ("MODEL",),
                               "ratio": ("FLOAT", {"default": 0.3, "min": 0.0, "max": 1.0, "step": 0.01}),
                               }}

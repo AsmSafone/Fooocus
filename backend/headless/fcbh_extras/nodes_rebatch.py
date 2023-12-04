@@ -2,7 +2,7 @@ import torch
 
 class LatentRebatch:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "latents": ("LATENT",),
                               "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
                               }}
@@ -33,9 +33,7 @@ class LatentRebatch:
     @staticmethod
     def get_slices(indexable, num, batch_size):
         '''divides an indexable object into num slices of length batch_size, and a remainder'''
-        slices = []
-        for i in range(num):
-            slices.append(indexable[i*batch_size:(i+1)*batch_size])
+        slices = [indexable[i*batch_size:(i+1)*batch_size] for i in range(num)]
         if num * batch_size < len(indexable):
             return slices, indexable[num * batch_size:]
         else:
@@ -50,8 +48,10 @@ class LatentRebatch:
     def cat_batch(batch1, batch2):
         if batch1[0] is None:
             return batch2
-        result = [torch.cat((b1, b2)) if torch.is_tensor(b1) else b1 + b2 for b1, b2 in zip(batch1, batch2)]
-        return result
+        return [
+            torch.cat((b1, b2)) if torch.is_tensor(b1) else b1 + b2
+            for b1, b2 in zip(batch1, batch2)
+        ]
 
     def rebatch(self, latents, batch_size):
         batch_size = batch_size[0]
@@ -81,10 +81,15 @@ class LatentRebatch:
             if current_batch[0].shape[0] > batch_size:
                 num = current_batch[0].shape[0] // batch_size
                 sliced, remainder = self.slice_batch(current_batch, num, batch_size)
-                
-                for i in range(num):
-                    output_list.append({'samples': sliced[0][i], 'noise_mask': sliced[1][i], 'batch_index': sliced[2][i]})
 
+                output_list.extend(
+                    {
+                        'samples': sliced[0][i],
+                        'noise_mask': sliced[1][i],
+                        'batch_index': sliced[2][i],
+                    }
+                    for i in range(num)
+                )
                 current_batch = remainder
 
         #add remainder

@@ -3,7 +3,7 @@ from nodes import MAX_RESOLUTION
 
 class CLIPTextEncodeSDXLRefiner:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": {
             "ascore": ("FLOAT", {"default": 6.0, "min": 0.0, "max": 1000.0, "step": 0.01}),
             "width": ("INT", {"default": 1024.0, "min": 0, "max": MAX_RESOLUTION}),
@@ -22,7 +22,7 @@ class CLIPTextEncodeSDXLRefiner:
 
 class CLIPTextEncodeSDXL:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": {
             "width": ("INT", {"default": 1024.0, "min": 0, "max": MAX_RESOLUTION}),
             "height": ("INT", {"default": 1024.0, "min": 0, "max": MAX_RESOLUTION}),

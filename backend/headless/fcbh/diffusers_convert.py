@@ -98,8 +98,7 @@ def convert_unet_state_dict(unet_state_dict):
         for sd_part, hf_part in unet_conversion_map_layer:
             v = v.replace(hf_part, sd_part)
         mapping[k] = v
-    new_state_dict = {v: unet_state_dict[k] for k, v in mapping.items()}
-    return new_state_dict
+    return {v: unet_state_dict[k] for k, v in mapping.items()}
 
 
 # ================#
@@ -244,13 +243,13 @@ def convert_text_enc_state_dict_v20(text_enc_dict, prefix=""):
         if None in tensors:
             raise Exception("CORRUPTED MODEL: one of the q-k-v values for the text encoder was missing")
         relabelled_key = textenc_pattern.sub(lambda m: protected[re.escape(m.group(0))], k_pre)
-        new_state_dict[relabelled_key + ".in_proj_weight"] = torch.cat(tensors)
+        new_state_dict[f"{relabelled_key}.in_proj_weight"] = torch.cat(tensors)
 
     for k_pre, tensors in capture_qkv_bias.items():
         if None in tensors:
             raise Exception("CORRUPTED MODEL: one of the q-k-v values for the text encoder was missing")
         relabelled_key = textenc_pattern.sub(lambda m: protected[re.escape(m.group(0))], k_pre)
-        new_state_dict[relabelled_key + ".in_proj_bias"] = torch.cat(tensors)
+        new_state_dict[f"{relabelled_key}.in_proj_bias"] = torch.cat(tensors)
 
     return new_state_dict
 

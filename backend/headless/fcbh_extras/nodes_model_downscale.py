@@ -4,16 +4,31 @@ import fcbh.utils
 class PatchModelAddDownscale:
     upscale_methods = ["bicubic", "nearest-exact", "bilinear", "area", "bislerp"]
     @classmethod
-    def INPUT_TYPES(s):
-        return {"required": { "model": ("MODEL",),
-                              "block_number": ("INT", {"default": 3, "min": 1, "max": 32, "step": 1}),
-                              "downscale_factor": ("FLOAT", {"default": 2.0, "min": 0.1, "max": 9.0, "step": 0.001}),
-                              "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001}),
-                              "end_percent": ("FLOAT", {"default": 0.35, "min": 0.0, "max": 1.0, "step": 0.001}),
-                              "downscale_after_skip": ("BOOLEAN", {"default": True}),
-                              "downscale_method": (s.upscale_methods,),
-                              "upscale_method": (s.upscale_methods,),
-                              }}
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "block_number": (
+                    "INT",
+                    {"default": 3, "min": 1, "max": 32, "step": 1},
+                ),
+                "downscale_factor": (
+                    "FLOAT",
+                    {"default": 2.0, "min": 0.1, "max": 9.0, "step": 0.001},
+                ),
+                "start_percent": (
+                    "FLOAT",
+                    {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001},
+                ),
+                "end_percent": (
+                    "FLOAT",
+                    {"default": 0.35, "min": 0.0, "max": 1.0, "step": 0.001},
+                ),
+                "downscale_after_skip": ("BOOLEAN", {"default": True}),
+                "downscale_method": (cls.upscale_methods,),
+                "upscale_method": (cls.upscale_methods,),
+            }
+        }
     RETURN_TYPES = ("MODEL",)
     FUNCTION = "patch"
 

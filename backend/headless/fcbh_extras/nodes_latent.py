@@ -11,7 +11,7 @@ def reshape_latent_to(target_shape, latent):
 
 class LatentAdd:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "samples1": ("LATENT",), "samples2": ("LATENT",)}}
 
     RETURN_TYPES = ("LATENT",)
@@ -31,7 +31,7 @@ class LatentAdd:
 
 class LatentSubtract:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "samples1": ("LATENT",), "samples2": ("LATENT",)}}
 
     RETURN_TYPES = ("LATENT",)
@@ -51,7 +51,7 @@ class LatentSubtract:
 
 class LatentMultiply:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "samples": ("LATENT",),
                               "multiplier": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),
                              }}
@@ -70,7 +70,7 @@ class LatentMultiply:
 
 class LatentInterpolate:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "samples1": ("LATENT",),
                               "samples2": ("LATENT",),
                               "ratio": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),

@@ -7,7 +7,7 @@ import folder_paths
 
 class UpscaleModelLoader:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "model_name": (folder_paths.get_filename_list("upscale_models"), ),
                              }}
     RETURN_TYPES = ("UPSCALE_MODEL",)
@@ -26,7 +26,7 @@ class UpscaleModelLoader:
 
 class ImageUpscaleWithModel:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required": { "upscale_model": ("UPSCALE_MODEL",),
                               "image": ("IMAGE",),
                               }}

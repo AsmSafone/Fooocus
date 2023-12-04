@@ -40,7 +40,7 @@ def composite(destination, source, x, y, mask = None, multiplier = 8, resize_sou
 
 class LatentCompositeMasked:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
                 "destination": ("LATENT",),
@@ -67,7 +67,7 @@ class LatentCompositeMasked:
 
 class ImageCompositeMasked:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
                 "destination": ("IMAGE",),
@@ -92,7 +92,7 @@ class ImageCompositeMasked:
 
 class MaskToImage:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
                 "required": {
                     "mask": ("MASK",),
@@ -110,7 +110,7 @@ class MaskToImage:
 
 class ImageToMask:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
                 "required": {
                     "image": ("IMAGE",),
@@ -130,7 +130,7 @@ class ImageToMask:
 
 class ImageColorToMask:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
                 "required": {
                     "image": ("IMAGE",),

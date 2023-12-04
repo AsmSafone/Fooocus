@@ -23,11 +23,8 @@ class BASE:
     latent_format = latent_formats.LatentFormat
 
     @classmethod
-    def matches(s, unet_config):
-        for k in s.unet_config:
-            if s.unet_config[k] != unet_config[k]:
-                return False
-        return True
+    def matches(cls, unet_config):
+        return all(cls.unet_config[k] == unet_config[k] for k in cls.unet_config)
 
     def model_type(self, state_dict, prefix=""):
         return model_base.ModelType.EPS

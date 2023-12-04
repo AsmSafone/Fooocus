@@ -35,11 +35,7 @@ def prepare_mask(noise_mask, shape, device):
     return noise_mask
 
 def get_models_from_cond(cond, model_type):
-    models = []
-    for c in cond:
-        if model_type in c:
-            models += [c[model_type]]
-    return models
+    return [c[model_type] for c in cond if model_type in c]
 
 def convert_cond(cond):
     out = []

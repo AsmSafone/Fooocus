@@ -12,7 +12,7 @@ class Blend:
         pass
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
                 "image1": ("IMAGE",),
@@ -73,7 +73,7 @@ class Blur:
         pass
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
                 "image": ("IMAGE",),
@@ -118,7 +118,7 @@ class Quantize:
         pass
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
                 "image": ("IMAGE",),
@@ -141,10 +141,9 @@ class Quantize:
         def normalized_bayer_matrix(n):
             if n == 0:
                 return np.zeros((1,1), "float32")
-            else:
-                q = 4 ** n
-                m = q * normalized_bayer_matrix(n - 1)
-                return np.bmat(((m-1.5, m+0.5), (m+1.5, m-0.5))) / q
+            q = 4 ** n
+            m = q * normalized_bayer_matrix(n - 1)
+            return np.bmat(((m-1.5, m+0.5), (m+1.5, m-0.5))) / q
 
         num_colors = len(pal_im.getpalette()) // 3
         spread = 2 * 256 / num_colors
@@ -189,7 +188,7 @@ class Sharpen:
         pass
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
                 "image": ("IMAGE",),
@@ -245,10 +244,17 @@ class ImageScaleToTotalPixels:
     crop_methods = ["disabled", "center"]
 
     @classmethod
-    def INPUT_TYPES(s):
-        return {"required": { "image": ("IMAGE",), "upscale_method": (s.upscale_methods,),
-                              "megapixels": ("FLOAT", {"default": 1.0, "min": 0.01, "max": 16.0, "step": 0.01}),
-                            }}
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "upscale_method": (cls.upscale_methods,),
+                "megapixels": (
+                    "FLOAT",
+                    {"default": 1.0, "min": 0.01, "max": 16.0, "step": 0.01},
+                ),
+            }
+        }
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "upscale"
 

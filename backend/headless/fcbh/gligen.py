@@ -186,8 +186,7 @@ class FourierEmbedder():
         "x: arbitrary shape of tensor. dim: cat dim"
         out = []
         for freq in self.freq_bands:
-            out.append(torch.sin(freq * x))
-            out.append(torch.cos(freq * x))
+            out.extend((torch.sin(freq * x), torch.cos(freq * x)))
         return torch.cat(out, cat_dim)
 
 
@@ -304,14 +303,10 @@ def load_gligen(sd):
     key_dim = 768
     for a in ["input_blocks", "middle_block", "output_blocks"]:
         for b in range(20):
-            k_temp = filter(lambda k: "{}.{}.".format(a, b)
-                            in k and ".fuser." in k, sd_k)
+            k_temp = filter(lambda k: f"{a}.{b}." in k and ".fuser." in k, sd_k)
             k_temp = map(lambda k: (k, k.split(".fuser.")[-1]), k_temp)
 
-            n_sd = {}
-            for k in k_temp:
-                n_sd[k[1]] = sd[k[0]]
-            if len(n_sd) > 0:
+            if n_sd := {k[1]: sd[k[0]] for k in k_temp}:
                 query_dim = n_sd["linear.weight"].shape[0]
                 key_dim = n_sd["linear.weight"].shape[1]
 
@@ -337,5 +332,4 @@ def load_gligen(sd):
         w.position_net = PositionNet(in_dim, out_dim)
         w.load_state_dict(sd, strict=False)
 
-    gligen = Gligen(output_list, w.position_net, key_dim)
-    return gligen
+    return Gligen(output_list, w.position_net, key_dim)

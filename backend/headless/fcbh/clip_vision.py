@@ -63,23 +63,23 @@ class ClipVisionModel():
 
 def convert_to_transformers(sd, prefix):
     sd_k = sd.keys()
-    if "{}transformer.resblocks.0.attn.in_proj_weight".format(prefix) in sd_k:
+    if f"{prefix}transformer.resblocks.0.attn.in_proj_weight" in sd_k:
         keys_to_replace = {
-            "{}class_embedding".format(prefix): "vision_model.embeddings.class_embedding",
-            "{}conv1.weight".format(prefix): "vision_model.embeddings.patch_embedding.weight",
-            "{}positional_embedding".format(prefix): "vision_model.embeddings.position_embedding.weight",
-            "{}ln_post.bias".format(prefix): "vision_model.post_layernorm.bias",
-            "{}ln_post.weight".format(prefix): "vision_model.post_layernorm.weight",
-            "{}ln_pre.bias".format(prefix): "vision_model.pre_layrnorm.bias",
-            "{}ln_pre.weight".format(prefix): "vision_model.pre_layrnorm.weight",
+            f"{prefix}class_embedding": "vision_model.embeddings.class_embedding",
+            f"{prefix}conv1.weight": "vision_model.embeddings.patch_embedding.weight",
+            f"{prefix}positional_embedding": "vision_model.embeddings.position_embedding.weight",
+            f"{prefix}ln_post.bias": "vision_model.post_layernorm.bias",
+            f"{prefix}ln_post.weight": "vision_model.post_layernorm.weight",
+            f"{prefix}ln_pre.bias": "vision_model.pre_layrnorm.bias",
+            f"{prefix}ln_pre.weight": "vision_model.pre_layrnorm.weight",
         }
 
         for x in keys_to_replace:
             if x in sd_k:
                 sd[keys_to_replace[x]] = sd.pop(x)
 
-        if "{}proj".format(prefix) in sd_k:
-            sd['visual_projection.weight'] = sd.pop("{}proj".format(prefix)).transpose(0, 1)
+        if f"{prefix}proj" in sd_k:
+            sd['visual_projection.weight'] = sd.pop(f"{prefix}proj").transpose(0, 1)
 
         sd = transformers_convert(sd, prefix, "vision_model.", 48)
     return sd

@@ -8,7 +8,7 @@ import fcbh.utils
 
 class BasicScheduler:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required":
                     {"model": ("MODEL",),
                      "scheduler": (fcbh.samplers.SCHEDULER_NAMES, ),
@@ -27,7 +27,7 @@ class BasicScheduler:
 
 class KarrasScheduler:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required":
                     {"steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
                      "sigma_max": ("FLOAT", {"default": 14.614642, "min": 0.0, "max": 1000.0, "step":0.01, "round": False}),
@@ -46,7 +46,7 @@ class KarrasScheduler:
 
 class ExponentialScheduler:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required":
                     {"steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
                      "sigma_max": ("FLOAT", {"default": 14.614642, "min": 0.0, "max": 1000.0, "step":0.01, "round": False}),
@@ -64,7 +64,7 @@ class ExponentialScheduler:
 
 class PolyexponentialScheduler:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required":
                     {"steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
                      "sigma_max": ("FLOAT", {"default": 14.614642, "min": 0.0, "max": 1000.0, "step":0.01, "round": False}),
@@ -83,7 +83,7 @@ class PolyexponentialScheduler:
 
 class VPScheduler:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required":
                     {"steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
                      "beta_d": ("FLOAT", {"default": 19.9, "min": 0.0, "max": 1000.0, "step":0.01, "round": False}), #TODO: fix default values
@@ -102,7 +102,7 @@ class VPScheduler:
 
 class SplitSigmas:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required":
                     {"sigmas": ("SIGMAS", ),
                     "step": ("INT", {"default": 0, "min": 0, "max": 10000}),
@@ -120,7 +120,7 @@ class SplitSigmas:
 
 class FlipSigmas:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required":
                     {"sigmas": ("SIGMAS", ),
                      }
@@ -138,7 +138,7 @@ class FlipSigmas:
 
 class KSamplerSelect:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required":
                     {"sampler_name": (fcbh.samplers.SAMPLER_NAMES, ),
                       }
@@ -154,7 +154,7 @@ class KSamplerSelect:
 
 class SamplerDPMPP_2M_SDE:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required":
                     {"solver_type": (['midpoint', 'heun'], ),
                      "eta": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 100.0, "step":0.01, "round": False}),
@@ -168,17 +168,14 @@ class SamplerDPMPP_2M_SDE:
     FUNCTION = "get_sampler"
 
     def get_sampler(self, solver_type, eta, s_noise, noise_device):
-        if noise_device == 'cpu':
-            sampler_name = "dpmpp_2m_sde"
-        else:
-            sampler_name = "dpmpp_2m_sde_gpu"
+        sampler_name = "dpmpp_2m_sde" if noise_device == 'cpu' else "dpmpp_2m_sde_gpu"
         sampler = fcbh.samplers.ksampler(sampler_name, {"eta": eta, "s_noise": s_noise, "solver_type": solver_type})
         return (sampler, )
 
 
 class SamplerDPMPP_SDE:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required":
                     {"eta": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 100.0, "step":0.01, "round": False}),
                      "s_noise": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 100.0, "step":0.01, "round": False}),
@@ -192,16 +189,13 @@ class SamplerDPMPP_SDE:
     FUNCTION = "get_sampler"
 
     def get_sampler(self, eta, s_noise, r, noise_device):
-        if noise_device == 'cpu':
-            sampler_name = "dpmpp_sde"
-        else:
-            sampler_name = "dpmpp_sde_gpu"
+        sampler_name = "dpmpp_sde" if noise_device == 'cpu' else "dpmpp_sde_gpu"
         sampler = fcbh.samplers.ksampler(sampler_name, {"eta": eta, "s_noise": s_noise, "r": r})
         return (sampler, )
 
 class SamplerCustom:
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {"required":
                     {"model": ("MODEL",),
                     "add_noise": ("BOOLEAN", {"default": True}),
@@ -231,10 +225,7 @@ class SamplerCustom:
             batch_inds = latent["batch_index"] if "batch_index" in latent else None
             noise = fcbh.sample.prepare_noise(latent_image, noise_seed, batch_inds)
 
-        noise_mask = None
-        if "noise_mask" in latent:
-            noise_mask = latent["noise_mask"]
-
+        noise_mask = latent["noise_mask"] if "noise_mask" in latent else None
         x0_output = {}
         callback = latent_preview.prepare_callback(model, sigmas.shape[-1] - 1, x0_output)
 

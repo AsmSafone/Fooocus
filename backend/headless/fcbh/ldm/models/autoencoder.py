@@ -20,10 +20,7 @@ class DiagonalGaussianRegularizer(torch.nn.Module):
     def forward(self, z: torch.Tensor) -> Tuple[torch.Tensor, dict]:
         log = dict()
         posterior = DiagonalGaussianDistribution(z)
-        if self.sample:
-            z = posterior.sample()
-        else:
-            z = posterior.mode()
+        z = posterior.sample() if self.sample else posterior.mode()
         kl_loss = posterior.kl()
         kl_loss = torch.sum(kl_loss) / kl_loss.shape[0]
         log["kl_loss"] = kl_loss
@@ -130,13 +127,10 @@ class AutoencodingEngine(AbstractAutoencoder):
         if unregularized:
             return z, dict()
         z, reg_log = self.regularization(z)
-        if return_reg_log:
-            return z, reg_log
-        return z
+        return (z, reg_log) if return_reg_log else z
 
     def decode(self, z: torch.Tensor, **kwargs) -> torch.Tensor:
-        x = self.decoder(z, **kwargs)
-        return x
+        return self.decoder(z, **kwargs)
 
     def forward(
         self, x: torch.Tensor, **additional_decode_kwargs
@@ -170,8 +164,7 @@ class AutoencodingEngineLegacy(AutoencodingEngine):
         self.embed_dim = embed_dim
 
     def get_autoencoder_params(self) -> list:
-        params = super().get_autoencoder_params()
-        return params
+        return super().get_autoencoder_params()
 
     def encode(
         self, x: torch.Tensor, return_reg_log: bool = False
@@ -183,7 +176,7 @@ class AutoencodingEngineLegacy(AutoencodingEngine):
             N = x.shape[0]
             bs = self.max_batch_size
             n_batches = int(math.ceil(N / bs))
-            z = list()
+            z = []
             for i_batch in range(n_batches):
                 z_batch = self.encoder(x[i_batch * bs : (i_batch + 1) * bs])
                 z_batch = self.quant_conv(z_batch)
@@ -191,9 +184,7 @@ class AutoencodingEngineLegacy(AutoencodingEngine):
             z = torch.cat(z, 0)
 
         z, reg_log = self.regularization(z)
-        if return_reg_log:
-            return z, reg_log
-        return z
+        return (z, reg_log) if return_reg_log else z
 
     def decode(self, z: torch.Tensor, **decoder_kwargs) -> torch.Tensor:
         if self.max_batch_size is None:
@@ -203,7 +194,7 @@ class AutoencodingEngineLegacy(AutoencodingEngine):
             N = z.shape[0]
             bs = self.max_batch_size
             n_batches = int(math.ceil(N / bs))
-            dec = list()
+            dec = []
             for i_batch in range(n_batches):
                 dec_batch = self.post_quant_conv(z[i_batch * bs : (i_batch + 1) * bs])
                 dec_batch = self.decoder(dec_batch, **decoder_kwargs)

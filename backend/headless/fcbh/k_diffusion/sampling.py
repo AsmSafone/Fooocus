@@ -378,11 +378,7 @@ class DPMSolver(nn.Module):
         m = math.floor(nfe / 3) + 1
         ts = torch.linspace(t_start, t_end, m + 1, device=x.device)
 
-        if nfe % 3 == 0:
-            orders = [3] * (m - 2) + [2, 1]
-        else:
-            orders = [3] * (m - 1) + [nfe % 3]
-
+        orders = [3] * (m - 2) + [2, 1] if nfe % 3 == 0 else [3] * (m - 1) + [nfe % 3]
         for i in range(len(orders)):
             eps_cache = {}
             t, t_next = ts[i], ts[i + 1]
@@ -446,8 +442,7 @@ class DPMSolver(nn.Module):
                 x_high, eps_cache = self.dpm_solver_3_step(x, s, t_, eps_cache=eps_cache)
             delta = torch.maximum(atol, rtol * torch.maximum(x_low.abs(), x_prev.abs()))
             error = torch.linalg.norm((x_low - x_high) / delta) / x.numel() ** 0.5
-            accept = pid.propose_step(error)
-            if accept:
+            if accept := pid.propose_step(error):
                 x_prev = x_low
                 x = x_high + su * s_noise * noise_sampler(self.sigma(s), self.sigma(t))
                 s = t
@@ -485,9 +480,7 @@ def sample_dpm_adaptive(model, x, sigma_min, sigma_max, extra_args=None, callbac
         if callback is not None:
             dpm_solver.info_callback = lambda info: callback({'sigma': dpm_solver.sigma(info['t']), 'sigma_hat': dpm_solver.sigma(info['t_up']), **info})
         x, info = dpm_solver.dpm_solver_adaptive(x, dpm_solver.t(torch.tensor(sigma_max)), dpm_solver.t(torch.tensor(sigma_min)), order, rtol, atol, h_init, pcoeff, icoeff, dcoeff, accept_safety, eta, s_noise, noise_sampler)
-    if return_info:
-        return x, info
-    return x
+    return (x, info) if return_info else x
 
 
 @torch.no_grad()

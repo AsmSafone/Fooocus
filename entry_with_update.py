@@ -40,7 +40,7 @@ try:
         print("Update failed - Did you modified any file?")
 except Exception as e:
     print('Update failed.')
-    print(str(e))
+    print(e)
 
 print('Update succeeded.')
 from launch import *
